@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>QOF GP's Trafford</title>
+  <meta charset="utf-8" />
+
+  <script src="https://cdn.jsdelivr.net/npm/vega@5.3.5/build/vega.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-lite@3.2.0/build/vega-lite.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-embed@4.0.0/build/vega-embed.js"></script>
+
+  <style media="screen">
+  /* Add space between Vega-Embed links  */
+  .vega-actions a {
+    margin-right: 5px;
+  }
+
+  #meta
+  {
+    padding: 2em 0;
+  }
+  #meta table
+  {
+    word-wrap: break-word;
+    padding: 0em 1em 2em 0em;
+    width: 98%;
+  }
+  #meta  table td:nth-child(1)
+  {
+    font-weight: bold;
+    -webkit-font-smoothing: antialiased;
+    font-size: 0.8em;
+    border-bottom: 1px solid #757575;
+    vertical-align: top;
+    white-space:nowrap;
+  }
+  #meta table td:nth-child(2)
+  {
+    border-bottom: 1px solid #757575;
+    font-size: 0.9em;
+  }
+
+  </style>
+</head>
+<body>
+  <h1>Quality and Outcomes Framework Trafford's GPs</h1>
+  <div id="selectID"></div>
+  <div id="vis"></div>
+  <div id="meta"></div>
+  <script src="https://d3js.org/d3.v4.min.js"></script>
+  <script>
+
+  var IndicatorID = ""
+  var IndicatorIDArray = []
+
+  d3.csv("IndicatorsQOF.csv", function (error, data) {
+    data.sort(function (a, b) {
+      return a.IndicatorID - b.IndicatorID;
+    })
+
+
+    IndicatorIDArray=data;
+    var SelectID = '<select name="IndicatorSelect" onChange="displayIndicator(this.value)" class="datasetSelect">';
+    for (var i = 0; i < IndicatorIDArray.length; i++) {
+      SelectID += '<option value="' + i + '"';
+      SelectID += '>' + IndicatorIDArray[i]["Indicator"] + '</option>';
+    }
+    SelectID += '</select>';
+    var divf = document.createElement('div');
+    divf.innerHTML = SelectID;
+    document.getElementById("selectID").appendChild(divf);
+
+  })
+  var urlGeo = "https://www.trafforddatalab.io/spatial_data/ward/2017/trafford_ward_super_generalised.geojson"
+
+  function displayIndicator(i){
+
+
+    colNames=["IndicatorID","Indicator","Definition","Rationale","Data source","Indicator production","Indicator source",
+    "Methodology","Standard population/values","Confidence interval details","Source of numerator","Definition of numerator",
+    "Source of denominator","Definition of denominator","Disclosure control","Caveats","Copyright","Data re-use",
+    "Links","Indicator number","Notes","Frequency","Rounding","Data quality","Indicator Content","Specific rationale",
+    "Unit","Value type","Year type","Polarity"]
+
+    var metadata = ' <table>';
+    for (var j = 0; j < colNames.length; j++) {
+      if(IndicatorIDArray[i][colNames[j]]!= "NA"){
+        metadata += '<tr><td>' + colNames[j] +'</td><td>'+ IndicatorIDArray[i][colNames[j]] + '</td></tr>';
+      }
+    }
+    metadata += ' </table>';
+    document.getElementById("meta").innerHTML=metadata;
+
+
+    var vlSpec =
+    {
+      "$schema": "https://vega.github.io/schema/vega-lite/v3.json",
+      "description": "QOF GP's Trafford",
+      "autosize": {"type": "fit"},
+      "title": IndicatorIDArray[+i]["Indicator"] + "  2017/18",
+      "data": {
+        "url": "QOFCGP.csv"
+      },
+      "transform": [{"filter": {"field": "Indicator ID", "equal": IndicatorIDArray[+i]["IndicatorID"]}}],
+      "vconcat": [
+        {
+          "width": 600,
+          "height":400,
+          "layer":[
+            {
+              "data": {
+                "url": urlGeo,
+                "format": {"property": "features"}
+              },
+              "projection": {"type": "mercator"},
+              "mark": {"type": "geoshape", "fill": "lightgray", "stroke": "white"}
+            },
+            {
+              "selection": {
+                "pick": {"type": "single", "fields": ["Area Code"], "empty":"none"}
+              },
+              "transform": [
+                {"filter": {"field": "Time period", "equal": "2017/18"}},
+                {"filter": {"field": "Parent Code", "equal": "E38000187"}},
+                {
+                  "lookup": "Area Code",
+                  "from": {
+                    "data": {
+                      "url": "Trafford_GPAddress.csv"
+                    },
+                    "key": "Code",
+                    "fields": ["lon","lat"]
+                  }
+                }
+              ],
+              "projection": {"type": "mercator"},
+              "mark": {
+                "type": "circle",
+                "opacity": 0.8,
+                "stroke": "#757575",
+                "strokeWidth": 1
+              },
+              "encoding": {
+                "longitude": {"field": "lon", "type": "quantitative"},
+                "latitude": {"field": "lat", "type": "quantitative"},
+                "color": {"field": "Value", "type": "quantitative",
+                "scale":{"scheme":"oranges"},
+                "legend":{"title":IndicatorIDArray[+i]["Unit"],"offset":0}},
+                "size": {"field": "Count", "type": "quantitative",
+                "legend":{"title":"Count","offset":-150}},
+                "strokeWidth": {
+                  "condition": {"selection": "pick", "value": 3},
+                  "value": 1
+                },
+                "tooltip": [
+                  {
+                    "field": "Area Name",
+                    "type": "nominal",
+                    "title": "Name"
+                  },
+                  {
+                    "field": "Value",
+                    "type": "quantitative",
+                    "title": "Percent",
+                    "format": ".1f"
+                  },
+                  {
+                    "field": "Count",
+                    "type": "quantitative",
+                    "title": "Count"
+                  },
+                  {
+                    "field": "Denominator",
+                    "type": "quantitative",
+                    "title": "Denominator"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "hconcat":[
+            {
+              "width": 600,
+              "transform": [{
+                "filter": {
+                  "or": [
+                    {"selection": "pick"},
+                    {"field": "Area Code", "equal": "E38000187"},
+                    {"field": "Area Code", "equal": "E39000037"},
+                    {"field": "Area Code", "equal": "E92000001"}
+                  ]}}
+                ],
+                "layer":[
+                  {
+                    "mark": {
+                      "type": "line",
+                      "point": {
+                        "filled": true,
+                        "fill": {
+                          "field": "Area Name", "type": "nominal", "sort": {"field": "Area Code"},
+                          "scale":{"range":["grey","orange","blue","red"]}},
+                          "stroke": "white"
+                        }
+                      },
+                      "encoding": {
+                        "x": {
+                          "field": "Time period",
+                          "type": "nominal",
+                          "axis": {"title": null, "grid": false}
+                        },
+                        "y": {"field": "Value", "type": "quantitative", "axis": {"title": IndicatorIDArray[+i]["Unit"]}},
+                        "color": {
+                          "field": "Area Name", "type": "nominal", "sort": {"field": "Area Code"},
+                          "scale":{"range":["grey","orange","blue","red"]},
+                          "legend": {
+                            "title": null,
+                            "orient": "top",
+                            "direction": "horizontal"
+                          }
+                        },
+                        "strokeWidth": {
+                          "condition": {"selection":"click", "value":3},
+                          "value": 2
+                        },
+                        "opacity": {
+                          "condition": {"selection":"click", "value":1},
+                          "value": 0.6
+                        },
+                        "tooltip": [
+                          {
+                            "field": "Area Name",
+                            "type": "nominal",
+                            "title": "Name"
+                          },
+                          {
+                            "field": "Time period",
+                            "type": "nominal",
+                            "title": "Year"
+                          },
+                          {
+                            "field": "Value",
+                            "type": "quantitative",
+                            "title": "Percent",
+                            "format": ".1f"
+                          }
+                        ]
+                      }},
+                      {
+                        "mark": {"type": "point", "opacity": 0, "filled": true, "size":50,"color": "gray"},
+                        "selection": {
+                          "click": {"type": "single", "fields": ["Area Name", "Time period"], "empty":"none"},
+                        },
+                        "encoding": {
+                          "x": {
+                            "field": "Time period",
+                            "type": "nominal",
+                            "axis": {"title": null, "grid": false}
+                          },
+                          "y": {"field": "Value", "type": "quantitative", "axis": {"title": IndicatorIDArray[+i]["Unit"]}
+                        },
+                        "opacity": {
+                          "condition": {"selection": "click", "value": 1},
+                          "value": 0
+                        },
+                        "tooltip": [
+                          {
+                            "field": "Area Name",
+                            "type": "nominal",
+                            "title": "Name"
+                          },
+                          {
+                            "field": "Time period",
+                            "type": "nominal",
+                            "title": "Year"
+                          },
+                          {
+                            "field": "Value",
+                            "type": "quantitative",
+                            "title": "Percent",
+                            "format": ".1f"
+                          }
+                        ]
+                      }}]
+                    },
+                    {
+                      "width":50,
+                      "transform": [
+                        {"filter": {"selection": "click"}}
+                      ],
+                      "vconcat": [
+                        {
+                          "title": "Area",
+                          "mark": "text",
+                          "encoding": {
+                            "text": {"field": "Area Name", "type": "nominal"}
+                          }
+                        },{
+                          "title": "Period",
+                          "mark": "text",
+                          "encoding": {
+                            "text": {"field": "Time period", "type": "nominal"}
+                          }
+                        },{
+                          "title": "Compared to England",
+                          "mark": "text",
+                          "encoding": {
+                            "text": {"field": "Compared to England value or percentiles", "type": "nominal"}
+                          }
+                        },{
+                          "title": "Compared to GM",
+                          "mark": "text",
+                          "encoding": {
+                            "text": {"field": "ComparedtoSub-regionvalueorpercentiles", "type": "nominal"}
+                          }
+                        },{
+                          "title": "Compared to Trafford CCG",
+                          "mark": "text",
+                          "encoding": {
+                            "text": {"field": "Compared to CCGs (2018/19) value or percentiles","type": "nominal"}
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "config": {"view": {"stroke": "transparent"},
+              "axisY": {"titleAngle": 0, "titleX": -35,"titleY": 5, "titleFontWeight" : "bold"},
+              "title":{"anchor": "start"},
+              "text":{"align": "left", "dx":-45}
+            }
+          }
+
+
+          ;
+
+          // Embed the visualization in the container with id `vis`
+          vegaEmbed('#vis', vlSpec);
+
+
+        }
+
+
+        </script>
+      </body>
+      </html>
