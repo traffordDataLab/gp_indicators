@@ -7,11 +7,53 @@
   <script src="https://cdn.jsdelivr.net/npm/vega@5.3.5/build/vega.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/vega-lite@3.2.0/build/vega-lite.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/vega-embed@4.0.0/build/vega-embed.js"></script>
-
   <style media="screen">
   /* Add space between Vega-Embed links  */
+  html, body
+  {
+    padding: 0;
+    margin: 0;
+    height: 100%;
+    font-family: 'Open Sans', sans-serif;
+    color: #212121;
+  }
+
+  a
+  {
+    color: #fc6721;
+    text-decoration: none;
+  }
+
+  a:hover
+  {
+    text-decoration: underline;
+  }
   .vega-actions a {
     margin-right: 5px;
+  }
+
+  .dropdownName{
+    font-weight: bold;
+  }
+
+  .floatL{
+    float:left;
+  }
+
+  .clearB{
+    clear: both;
+  }
+
+  #domainID{
+    padding-left: 3px;
+  }
+
+  #selectID{
+    padding-left: 3px;
+  }
+
+  #help{
+    padding-top: 10px;
   }
 
   #meta
@@ -21,14 +63,14 @@
   #meta table
   {
     word-wrap: break-word;
-    padding: 0em 1em 2em 0em;
+    padding: 1em 1em 2em 0em;
     width: 98%;
   }
   #meta  table td:nth-child(1)
   {
     font-weight: bold;
     -webkit-font-smoothing: antialiased;
-    font-size: 0.8em;
+    font-size: 12px;
     border-bottom: 1px solid #757575;
     vertical-align: top;
     white-space:nowrap;
@@ -36,14 +78,15 @@
   #meta table td:nth-child(2)
   {
     border-bottom: 1px solid #757575;
-    font-size: 0.9em;
+    font-size: 13px;
   }
-
   </style>
 </head>
 <body>
-  <h1>Quality and Outcomes Framework Trafford's GPs</h1>
-  <div id="selectID"></div>
+  <h2>Quality and Outcomes Framework Trafford's GPs</h2>
+  <div id="domainID" class="floatL"></div>
+  <div id="selectID" class="floatL"></div>
+  <div id="help" class="clearB"><p>Click on a GP practice on the map to add it to the timeline and click on the timeline points for statistical comparison with comparator areas. The indicators are part of the <a href="http://content.digital.nhs.uk/qof" target="_blank">Quality and Outcomes Framework</a>.</p></div>
   <div id="vis"></div>
   <div id="meta"></div>
   <script src="https://d3js.org/d3.v4.min.js"></script>
@@ -51,44 +94,54 @@
 
   var IndicatorID = ""
   var IndicatorIDArray = []
+  var IndicatorsDomain = []
 
   d3.csv("IndicatorsQOF.csv", function (error, data) {
     data.sort(function (a, b) {
       return a.IndicatorID - b.IndicatorID;
     })
-
-
     IndicatorIDArray=data;
-    var SelectID = '<select name="IndicatorSelect" onChange="displayIndicator(this.value)" class="datasetSelect">';
-    for (var i = 0; i < IndicatorIDArray.length; i++) {
-      SelectID += '<option value="' + i + '"';
-      SelectID += '>' + IndicatorIDArray[i]["Indicator"] + '</option>';
+    displayFirst()
+
+    d3.json("Domains.json",function (error, data) {
+      IndicatorsDomain = data;
+      console.log(data)
+      var DomainID = '<div class="dropdownName">Category</div><select name="DomainSelect" onChange="indicatorList(this.value)" class="datasetSelect"><option>Select a Category</option>';
+      for (var a = 0; a < IndicatorsDomain.length; a++) {
+        DomainID += '<option value="' + a + '"';
+        DomainID += '>' + IndicatorsDomain[a]["DomainName"] + '</option>';
+      }
+      DomainID += '</select>';
+      var divf = document.createElement('div');
+      divf.innerHTML = DomainID;
+      document.getElementById("domainID").appendChild(divf);
+
+      document.getElementById("selectID").innerHTML = '<div class="dropdownName">Indicator</div><select id="indicators" name="IndicatorSelect" onChange="displayIndicator(this.value)" class="datasetSelect"><option>Select an Indicator</option></select>'
+      document.getElementById('indicators').disabled=true;
+    })
+  })
+  function indicatorList(a){
+    var index=0
+    var SelectID = '<div class="dropdownName">Indicator</div><select name="IndicatorSelect" onChange="displayIndicator(this.value)" class="datasetSelect"><option>Select an Indicator</option>';
+    console.log(IndicatorsDomain[a])
+    for (var i = 0; i < IndicatorsDomain[a]["indicators"].length; i++) {
+      for (var j = 0; j < IndicatorIDArray.length; j++) {
+        if (IndicatorsDomain[a]["indicators"][i]==IndicatorIDArray[j]["IndicatorID"]){
+          SelectID += '<option value="' + j + '"';
+          SelectID += '>' + IndicatorIDArray[j]["Indicator"] + '</option>';
+          console.log("index"+j)
+          break
+        }
+      }
     }
     SelectID += '</select>';
-    var divf = document.createElement('div');
-    divf.innerHTML = SelectID;
-    document.getElementById("selectID").appendChild(divf);
+    document.getElementById("selectID").innerHTML = SelectID;
+  }
 
-  })
   var urlGeo = "https://www.trafforddatalab.io/spatial_data/ward/2017/trafford_ward_super_generalised.geojson"
 
   function displayIndicator(i){
 
-
-    colNames=["IndicatorID","Indicator","Definition","Rationale","Data source","Indicator production","Indicator source",
-    "Methodology","Standard population/values","Confidence interval details","Source of numerator","Definition of numerator",
-    "Source of denominator","Definition of denominator","Disclosure control","Caveats","Copyright","Data re-use",
-    "Links","Indicator number","Notes","Frequency","Rounding","Data quality","Indicator Content","Specific rationale",
-    "Unit","Value type","Year type","Polarity"]
-
-    var metadata = ' <table>';
-    for (var j = 0; j < colNames.length; j++) {
-      if(IndicatorIDArray[i][colNames[j]]!= "NA"){
-        metadata += '<tr><td>' + colNames[j] +'</td><td>'+ IndicatorIDArray[i][colNames[j]] + '</td></tr>';
-      }
-    }
-    metadata += ' </table>';
-    document.getElementById("meta").innerHTML=metadata;
 
 
     var vlSpec =
@@ -104,7 +157,7 @@
       "vconcat": [
         {
           "width": 600,
-          "height":400,
+          "height": 400,
           "layer":[
             {
               "data": {
@@ -143,10 +196,10 @@
                 "longitude": {"field": "lon", "type": "quantitative"},
                 "latitude": {"field": "lat", "type": "quantitative"},
                 "color": {"field": "Value", "type": "quantitative",
-                "scale":{"scheme":"oranges"},
+                "scale":{"range":["#feedde","#fdbe85","#fd8d3c","#e6550d","#a63603"]},
                 "legend":{"title":IndicatorIDArray[+i]["Unit"],"offset":0}},
                 "size": {"field": "Count", "type": "quantitative",
-                "legend":{"title":"Count","offset":-150}},
+                "legend":{"title":"Count","offset":-150,"symbolFillColor":"white"}},
                 "strokeWidth": {
                   "condition": {"selection": "pick", "value": 3},
                   "value": 1
@@ -175,6 +228,21 @@
                   }
                 ]
               }
+            },
+            {
+              "data":{"values": [{"note": "Contains National Statistics & OS data © Crown copyright and database right (2019)"}]},
+              "mark":{
+                "type": "text",
+                "align": "left",
+                "baseline": "bottom",
+                "dx":0,
+                "dy":215,
+                "fontSize":8,
+                "tooltip": null
+              },
+              "encoding": {
+                "text": {"field": "note", "type": "nominal"},
+              }
             }
           ]
         },
@@ -196,10 +264,6 @@
                     "mark": {
                       "type": "line",
                       "point": {
-                        "filled": true,
-                        "fill": {
-                          "field": "Area Name", "type": "nominal", "sort": {"field": "Area Code"},
-                          "scale":{"range":["grey","orange","blue","red"]}},
                           "stroke": "white"
                         }
                       },
@@ -212,7 +276,7 @@
                         "y": {"field": "Value", "type": "quantitative", "axis": {"title": IndicatorIDArray[+i]["Unit"]}},
                         "color": {
                           "field": "Area Name", "type": "nominal", "sort": {"field": "Area Code"},
-                          "scale":{"range":["grey","orange","blue","red"]},
+                          "scale":{"range":["#757575","#E7B800","#00AFBB","#fc6721"]},
                           "legend": {
                             "title": null,
                             "orient": "top",
@@ -293,31 +357,36 @@
                           "title": "Area",
                           "mark": "text",
                           "encoding": {
-                            "text": {"field": "Area Name", "type": "nominal"}
+                            "text": {"field": "Area Name", "type": "nominal"},
+                            "tooltip": null
                           }
                         },{
                           "title": "Period",
                           "mark": "text",
                           "encoding": {
-                            "text": {"field": "Time period", "type": "nominal"}
+                            "text": {"field": "Time period", "type": "nominal"},
+                            "tooltip": null
                           }
                         },{
                           "title": "Compared to England",
                           "mark": "text",
                           "encoding": {
-                            "text": {"field": "Compared to England value or percentiles", "type": "nominal"}
+                            "text": {"field": "Compared to England value or percentiles", "type": "nominal"},
+                            "tooltip": null
                           }
                         },{
                           "title": "Compared to GM",
                           "mark": "text",
                           "encoding": {
-                            "text": {"field": "ComparedtoSub-regionvalueorpercentiles", "type": "nominal"}
+                            "text": {"field": "ComparedtoSub-regionvalueorpercentiles", "type": "nominal"},
+                            "tooltip": null
                           }
                         },{
                           "title": "Compared to Trafford CCG",
                           "mark": "text",
                           "encoding": {
-                            "text": {"field": "Compared to CCGs (2018/19) value or percentiles","type": "nominal"}
+                            "text": {"field": "Compared to CCGs (2018/19) value or percentiles","type": "nominal"},
+                            "tooltip": null
                           }
                         }
                       ]
@@ -330,18 +399,153 @@
               "title":{"anchor": "start"},
               "text":{"align": "left", "dx":-45}
             }
-          }
-
-
-          ;
+          };
 
           // Embed the visualization in the container with id `vis`
           vegaEmbed('#vis', vlSpec);
 
+          metaTable(i)
 
         }
 
+        function displayFirst(){
 
-        </script>
-      </body>
-      </html>
+          var vlSpec =
+          {
+            "$schema": "https://vega.github.io/schema/vega-lite/v3.json",
+            "description": "QOF GP's Trafford",
+            "autosize": {"type": "fit"},
+            "title": IndicatorIDArray[0]["Indicator"] + "  2017/18",
+            "data": {
+              "url": "QOFCGP.csv"
+            },
+            "transform": [{"filter": {"field": "Indicator ID", "equal": IndicatorIDArray[0]["IndicatorID"]}}],
+            "width": 600,
+            "height": 450,
+            "layer":[
+              {
+                "data": {
+                  "url": urlGeo,
+                  "format": {"property": "features"}
+                },
+                "projection": {"type": "mercator"},
+                "mark": {"type": "geoshape", "fill": "lightgray", "stroke": "white"}
+              },
+              {
+                "selection": {
+                  "pick": {"type": "single", "fields": ["Area Code"], "empty":"none"}
+                },
+                "transform": [
+                  {"filter": {"field": "Time period", "equal": "2017/18"}},
+                  {"filter": {"field": "Parent Code", "equal": "E38000187"}},
+                  {
+                    "lookup": "Area Code",
+                    "from": {
+                      "data": {
+                        "url": "Trafford_GPAddress.csv"
+                      },
+                      "key": "Code",
+                      "fields": ["lon","lat"]
+                    }
+                  }
+                ],
+                "projection": {"type": "mercator"},
+                "mark": {
+                  "type": "circle",
+                  "opacity": 0.8,
+                  "stroke": "#757575",
+                  "strokeWidth": 1
+                },
+                "encoding": {
+                  "longitude": {"field": "lon", "type": "quantitative"},
+                  "latitude": {"field": "lat", "type": "quantitative"},
+                  "color": {"field": "Count", "type": "quantitative",
+                  "scale":{"range":["#feedde","#fdbe85","#fd8d3c","#e6550d","#a63603"]},
+                  "legend":{"title":"Count","offset":0}},
+                  "size": {"field": "Count", "type": "quantitative",
+                  "legend":{"title":null,"offset":-150,"symbolFillColor":"white"}},
+                  "tooltip": [
+                    {
+                      "field": "Area Name",
+                      "type": "nominal",
+                      "title": "Name",
+                    },
+                    {
+                      "field": "Value",
+                      "type": "quantitative",
+                      "title": "Percent",
+                      "format": ".1f"
+                    },
+                    {
+                      "field": "Count",
+                      "type": "quantitative",
+                      "title": "Count"
+                    }
+                  ]
+                }
+              },
+              {
+                "data":{"values": [{"note": "Contains National Statistics & OS data © Crown copyright and database right (2019)"}]},
+                "mark":{
+                  "type": "text",
+                  "align": "left",
+                  "baseline": "bottom",
+                  "dx":35,
+                  "dy":223,
+                  "fontSize":8,
+                  "tooltip": null
+                },
+                "encoding": {
+                  "text": {"field": "note", "type": "nominal"},
+                }
+              },
+              {
+                "data":{"values":[{"note":"Select a category and an indicator above"}]},
+                "mark":{
+                  "type":"text",
+                  "align":"left",
+                  "baseline":"bottom",
+                  "dx":-275,
+                  "dy":-200,
+                  "fontSize":12,
+                  "fontWeight":"bold",
+                  "color":"red"
+                },
+                "encoding":{
+                  "text":{"field": "note", "type": "nominal"},
+                },
+              }
+            ],
+            "config": {"view": {"stroke": "transparent"},
+            "axisY": {"titleAngle": 0, "titleX": -35,"titleY": 5, "titleFontWeight" : "bold"},
+            "title":{"anchor": "start"},
+            "text":{"align": "left", "dx":-45}
+          }
+        };
+
+        // Embed the visualization in the container with id `vis`
+        vegaEmbed('#vis', vlSpec);
+        metaTable(0)
+      }
+
+      function metaTable(i){
+
+        colNames=["IndicatorID","Indicator","Definition","Rationale","Data source","Indicator production","Indicator source",
+        "Methodology","Standard population/values","Confidence interval details","Source of numerator","Definition of numerator",
+        "Source of denominator","Definition of denominator","Disclosure control","Caveats","Copyright","Data re-use",
+        "Links","Indicator number","Notes","Frequency","Rounding","Data quality","Indicator Content","Specific rationale",
+        "Unit","Value type","Year type","Polarity"]
+
+        var metadata = ' <div class="dropdownName">Indicator Metadata</div><table>';
+        for (var j = 0; j < colNames.length; j++) {
+          if(IndicatorIDArray[i][colNames[j]]!= "NA"){
+            metadata += '<tr><td>' + colNames[j] +'</td><td>'+ IndicatorIDArray[i][colNames[j]] + '</td></tr>';
+          }
+        }
+        metadata += ' </table>';
+        document.getElementById("meta").innerHTML=metadata;
+      }
+
+      </script>
+    </body>
+    </html>
