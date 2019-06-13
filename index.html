@@ -12,7 +12,7 @@
   html, body
   {
     padding: 0;
-    margin: 0;
+    margin: 5px 0px 0px 5px;
     height: 100%;
     font-family: 'Open Sans', sans-serif;
     color: #212121;
@@ -42,6 +42,12 @@
 
   .clearB{
     clear: both;
+    padding-top: 12px;
+  }
+
+  .title{
+    margin: 0px;
+    padding: 0px;
   }
 
   #domainID{
@@ -53,7 +59,8 @@
   }
 
   #help{
-    padding-top: 10px;
+    font-size: 12px;
+    padding-bottom: 10px;
   }
 
   #meta
@@ -83,12 +90,16 @@
   </style>
 </head>
 <body>
-  <h2>Quality and Outcomes Framework Trafford's GPs</h2>
+  <h2 class="title">GP practice indicators</h2>
+  <h4 class="title">Monitor the performance of GP practices and the prevalence of certain common conditions in Trafford</h4>
+  <div id="help" class="title"><p class="title">Source: <a href="http://content.digital.nhs.uk/qof" target="_blank">Quality and Outcomes Framework</a>.</p></div>
+
   <div id="domainID" class="floatL"></div>
   <div id="selectID" class="floatL"></div>
-  <div id="help" class="clearB"><p>Click on a GP practice on the map to add it to the timeline and click on the timeline points for statistical comparison with comparator areas. The indicators are part of the <a href="http://content.digital.nhs.uk/qof" target="_blank">Quality and Outcomes Framework</a>.</p></div>
+  <div class="clearB">
   <div id="vis"></div>
   <div id="meta"></div>
+  </div>
   <script src="https://d3js.org/d3.v4.min.js"></script>
   <script>
 
@@ -242,6 +253,36 @@
               },
               "encoding": {
                 "text": {"field": "note", "type": "nominal"},
+              }
+            },
+            {
+              "data":{"values":[{"note":"Click on a GP practice to add it to the timeline"}]},
+              "mark":{
+                "type":"text",
+                "align":"left",
+                "baseline":"bottom",
+                "dx":-340,
+                "dy":-200,
+                "fontSize":12,
+                "color":"gray"
+              },
+              "encoding":{
+                "text":{"field": "note", "type": "nominal"},
+              }
+            },
+            {
+              "data":{"values":[{"note":"Click on the timeline points for statistical comparison with comparator areas"}]},
+              "mark":{
+                "type":"text",
+                "align":"left",
+                "baseline":"bottom",
+                "dx":-340,
+                "dy":248,
+                "fontSize":12,
+                "color":"gray"
+              },
+              "encoding":{
+                "text":{"field": "note", "type": "nominal"},
               }
             }
           ]
@@ -530,7 +571,7 @@
 
       function metaTable(i){
 
-        colNames=["IndicatorID","Indicator","Definition","Rationale","Data source","Indicator production","Indicator source",
+        colNames=["IndicatorID","Indicator","Definition","Data source","Indicator production","Indicator source",
         "Methodology","Standard population/values","Confidence interval details","Source of numerator","Definition of numerator",
         "Source of denominator","Definition of denominator","Disclosure control","Caveats","Copyright","Data re-use",
         "Links","Indicator number","Notes","Frequency","Rounding","Data quality","Indicator Content","Specific rationale",
